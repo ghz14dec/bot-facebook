@@ -3,13 +3,16 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-const VERIFY_TOKEN = "meu_token_secreto_123"; // tem que ser igual do Facebook
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const PAGE_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 
 app.get('/webhook/facebook-page', (req, res) => {
   if (req.query['hub.verify_token'] === VERIFY_TOKEN) {
     res.send(req.query['hub.challenge']);
-  } else res.sendStatus(403);
+  } else {
+    console.log("Token errado:", req.query['hub.verify_token']);
+    res.sendStatus(403);
+  }
 });
 
 app.post('/webhook/facebook-page', async (req, res) => {
@@ -17,9 +20,6 @@ app.post('/webhook/facebook-page', async (req, res) => {
   const change = entry?.changes?.[0];
   if (change?.field === 'feed' && change?.value?.item === 'comment') {
     const comment_id = change.value.comment_id;
-    const from_id = change.value.from?.id;
-
-    // Aqui é seu fluxo ÚNICO
     try {
       await axios.post(`https://graph.facebook.com/v20.0/${comment_id}/private_replies`, {
         message: "Te mandei no privado! Olha sua DM 🔥"
@@ -29,8 +29,6 @@ app.post('/webhook/facebook-page', async (req, res) => {
         recipient: { comment_id: comment_id },
         message: { text: "Aqui está seu link / cupom:..." }
       }, { params: { access_token: PAGE_TOKEN } });
-
-      console.log("DM enviada pra:", from_id);
     } catch(e){ console.log(e.response?.data) }
   }
   res.sendStatus(200);
